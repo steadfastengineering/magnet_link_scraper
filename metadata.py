@@ -13,7 +13,9 @@ meta_data_path = "./metadata"
 def get_metadata(magnet_link):
     ses = lt.session()
     params = lt.add_torrent_params()
-    params.url = magnet_link   
+    params.url = magnet_link  
+    if not os.path.exists(save_path):
+        os.makedirs(save_path) 
     params.save_path = save_path
     params.upload_mode = True 
     handle = ses.add_torrent(params)  
@@ -43,7 +45,7 @@ def clean_up(quiet=True):
             except Exception as e:
                 print(f"Failed to delete {path}. Reason: {e}")
     else:
-        print(f"Directory {save_path} does not exist.")
+        print(f"Directory {save_path} does not exist. Nothing to clean.")
 
 def dump_magnet_link_metadata(links):
     """

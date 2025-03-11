@@ -1,5 +1,5 @@
 .qodo
 .temp
-links
-metadata
+links/*
+metadata/*
 /venv
