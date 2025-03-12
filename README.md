@@ -57,7 +57,7 @@ This script uses Scrapy to start crawling from a given URL and extracts magnet l
 - **Script:** `metadata.py`
 - **Usage:**
   ```bash
-  python metadata.py --json <path_to_JSON>
+  python metadata.py --json <path_to_json>
   ```
   ```bash
   python metadata.py --txt <path_to_txt>
@@ -65,13 +65,13 @@ This script uses Scrapy to start crawling from a given URL and extracts magnet l
   ```bash
   python metadata.py <magnet_link>
   ```
-  The script fetches the meta data of the supplied magnet link or links and stores the torrent name and hash into a timestamped file in the `metadata` directory.
+  The script fetches the metadata of the supplied magnet link or links and stores the torrent name and hash into a timestamped file in the `metadata` directory.
 
 ## Additional Information
 
 - You can customize the script settings (e.g., feed export format) by modifying the settings dictionary in `scrape-magnet-links.py`.
 - You may also adjust the metadata which is written to file by `metadata.py`, see libtorrent documentation for more info.  
-- For further modifications or enhancements, refer to the code comments and documentation within the scripts.
+
 
 ## Magnet Link JSON Sample
 ```json
