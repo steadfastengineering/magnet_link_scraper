@@ -6,6 +6,7 @@ import concurrent.futures
 import os
 import shutil
 import datetime
+import json
 
 save_path = "./.temp"
 meta_data_path = "./metadata"
@@ -47,7 +48,7 @@ def clean_up(quiet=True):
     else:
         print(f"Directory {save_path} does not exist. Nothing to clean.")
 
-def dump_magnet_link_metadata(links):
+def dump_metadata(links):
     """
     Fetch metadata for a list of magnet links in parallel using get_metadata().
     Write the result for each magnet link to a shared text file specified by meta_data_path.
@@ -56,8 +57,7 @@ def dump_magnet_link_metadata(links):
     full_path = os.path.join(meta_data_path, file_name)
 
     print(f"Fetching metadata to {full_path}")
-
-    # Using ThreadPoolExecutor to process magnet links concurrently.
+ 
     # TODO: break file into chunks of links for each thread to reduce number of threads 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         future_to_link = {executor.submit(get_metadata, link): link for link in links}
@@ -76,19 +76,27 @@ def dump_magnet_link_metadata(links):
                     result = f"{status.name}, {status.info_hash}\n"
                      
                     f.write(result)
-
+  
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Retrieve meta data for a given magnet link or a list of magnet links from a file.")
     parser.add_argument("magnet_link", nargs="?", help="A single magnet link in quotes")
-    parser.add_argument("--links_file", help="Path to a file containing a list of magnet links, one per line")
+    parser.add_argument("--txt", help="Path to a file containing a list of magnet links, one per line")
+    parser.add_argument("--json", help="Path to a file containing magnet links storaged as JSON. Eg. [ { magnet: \"<link_text>\"}]")
     args = parser.parse_args()
 
-    if args.links_file:
-        # Read magnet links from the provided file
-        with open(args.links_file, "r") as file:
+    if args.txt: 
+        # Process all links stored in a plain text document. 
+        with open(args.txt, "r") as file:
             links = [line.strip() for line in file if line.strip()]
-        dump_magnet_link_metadata(links)
-        clean_up(quiet=False)
+            dump_metadata(links)
+            clean_up(quiet=False)
+    elif args.json:
+        # Process all links stored in a JSON document.
+        with open(args.json, 'r') as file:
+            data = json.load(file)
+            links = [entry["magnet"] for entry in data if "magnet" in entry]
+            dump_metadata(links)
+            clean_up(quiet=False)
     elif args.magnet_link:
         # Process a single magnet link
         status = get_metadata(magnet_link=args.magnet_link)

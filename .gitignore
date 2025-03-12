@@ -1,5 +1,6 @@
 .qodo
 .temp
+.vscode
 links/*
 metadata/*
 /venv
