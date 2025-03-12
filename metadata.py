@@ -7,10 +7,12 @@ import os
 import shutil
 import datetime
 import json
+import sys
+from tqdm import tqdm  
 
 save_path = "./.temp"
 meta_data_path = "./metadata"
-
+ 
 def get_metadata(magnet_link):
     ses = lt.session()
     params = lt.add_torrent_params()
@@ -21,8 +23,8 @@ def get_metadata(magnet_link):
     params.upload_mode = True 
     handle = ses.add_torrent(params)  
     while handle.torrent_file() is None:
-        # Some metadata fetchs quickly while some may take a very long time. No reason to idle quickly.
-        time.sleep(2)
+        # Some metadata fetchs quickly while some may take a very long time.  
+        time.sleep(1)
       
     status = handle.status()
     return status
@@ -31,18 +33,18 @@ def clean_up(quiet=True):
     """
     Delete all files and directories inside the .temp directory.
     """
+    if not quiet: 
+        print(f"Removing any torrent data found in: {save_path}")
+    
     if os.path.exists(save_path):
         for entry in os.listdir(save_path):
             path = os.path.join(save_path, entry)
             try:
                 if os.path.isfile(path) or os.path.islink(path):
-                    os.remove(path)
-                    if not quiet:
-                        print(f"Removed any torrent from: {save_path}")
+                    os.remove(path) 
                 elif os.path.isdir(path):
                     shutil.rmtree(path)
-                    if not quiet: 
-                        print(f"Removed any torrent data from: {save_path}")
+                    
             except Exception as e:
                 print(f"Failed to delete {path}. Reason: {e}")
     else:
@@ -53,29 +55,46 @@ def dump_metadata(links):
     Fetch metadata for a list of magnet links in parallel using get_metadata().
     Write the result for each magnet link to a shared text file specified by meta_data_path.
     """
-    file_name = f"file_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    file_name = f"magnetlinks_metadata_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
     full_path = os.path.join(meta_data_path, file_name)
 
     print(f"Fetching metadata to {full_path}")
+
+    link_count = len(links) 
+    pbar = tqdm(
+        range(link_count),
+        file=sys.stdout,
+        colour='GREEN',
+        desc=f"Fetching metadata: ... ",
+        unit='',
+        bar_format="{l_bar}{bar} | {n_fmt}/{total_fmt} [{elapsed}]"
+    )
  
-    # TODO: break file into chunks of links for each thread to reduce number of threads 
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        future_to_link = {executor.submit(get_metadata, link): link for link in links}
-        
-        # Open the shared file for writing results  
-        with open(full_path, "w") as f:
-            for future in concurrent.futures.as_completed(future_to_link):
-                link = future_to_link[future]
-                try:
-                    status = future.result()
-                except Exception as exc:
-                    err_msg = f"{link}: failed with exception: {exc}\n"
-                    print(err_msg)
-                    f.write(err_msg)
-                else: 
-                    result = f"{status.name}, {status.info_hash}\n"
-                     
-                    f.write(result)
+   # Process links sequentially with background thread for each link
+    with open(full_path, "w") as f, concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        for link in links:
+            # Submit the task to the executor
+            future = executor.submit(get_metadata, link)
+            
+            # Poll the future once per second until done
+            while not future.done():
+                pbar.set_description("Processing...")
+                pbar.refresh()
+                time.sleep(1)
+                
+            # Once done, update description and write the result
+            try:
+                status = future.result()
+                result = f"{status.name}, {status.info_hash}, {link}\n"
+                pbar.set_description(f"Fetched: {status.info_hash}")
+            except Exception as e:
+                result = f"Error fetching metadata for link {link}: {e}\n"
+                pbar.set_description("Error encountered!")
+                
+            f.write(result)
+            pbar.update(1)
+            
+    pbar.close()
   
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Retrieve meta data for a given magnet link or a list of magnet links from a file.")
