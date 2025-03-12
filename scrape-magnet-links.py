@@ -4,6 +4,7 @@ import argparse
 import re
 from scrapy.crawler import CrawlerProcess
 import datetime
+from bs4 import BeautifulSoup
 
 class MagnetSpider(scrapy.Spider):
     name = "magnet_spider"
@@ -14,10 +15,13 @@ class MagnetSpider(scrapy.Spider):
         self.start_urls = [start_url]
     
     def parse(self, response):
-        # Search the entire response text for magnet links using regex
+        # Clean all HTML elements such as <wbr> or others that might breakup link text, we only care about the inner text without the HTML tags
+        soup = BeautifulSoup(response.text, 'html.parser')
+        clean_text = soup.get_text()   
+        
         # The regex looks for strings starting with "magnet:?" and collects characters until a terminator (space, quote, or angle bracket)
-        magnet_links = re.findall(r'magnet:\?[^\s"\'<>]+', response.text)
-        print(response.text)
+        magnet_links = re.findall(r'magnet:\?[^\s"\'<>]+', clean_text)
+         
         for link in set(magnet_links):  # using set() to avoid duplicates
             yield {"magnet": link} 
 
